@@ -156,29 +156,40 @@ async function run() {
       res.send(result);
     });
 
-    app.put("/bioData", async (req, res) => {
-      const bioData = req.body;
-    
+    app.post("/bioData", async (req, res) => {
+      const item = req.body;
       const lastBioDataId = await bioDataCollection.estimatedDocumentCount();
       const newBioDataId = parseInt(lastBioDataId) + 1;
-      const newBioData = {
+      const newItem = {
         bioDataId: newBioDataId,
-        ...bioData,
+        ...item,
       };
-      const query = { bioDataId: newBioDataId };
-      const options = { upsert: true };
-      const updaterDoc = {
-        $set: {
-          ...newBioData,
-        },
-      };
-      const result = await bioDataCollection.updateOne(
-        query,
-        updaterDoc,
-        options
-      );
+      const result = await bioDataCollection.insertOne(newItem);
       res.send(result);
     });
+
+    // app.put("/bioData", async (req, res) => {
+    //   const bioData = req.body;
+    //   const lastBioDataId = await bioDataCollection.estimatedDocumentCount();
+    //   const newBioDataId = parseInt(lastBioDataId) + 1;
+    //   const newBioData = {
+    //     bioDataId: newBioDataId,
+    //     ...bioData,
+    //   };
+    //   const query = { bioDataId: newBioDataId };
+    //   const options = { upsert: true };
+    //   const updaterDoc = {
+    //     $set: {
+    //       ...newBioData,
+    //     },
+    //   };
+    //   const result = await bioDataCollection.updateOne(
+    //     query,
+    //     updaterDoc,
+    //     options
+    //   );
+    //   res.send(result);
+    // });
 
     app.delete("/bioData/:id", async (req, res) => {
       const id = req.params.id;
