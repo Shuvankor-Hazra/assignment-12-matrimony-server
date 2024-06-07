@@ -149,8 +149,16 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/bioData/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await bioDataCollection.findOne(query);
+      res.send(result);
+    });
+
     app.put("/bioData", async (req, res) => {
       const bioData = req.body;
+    
       const lastBioDataId = await bioDataCollection.estimatedDocumentCount();
       const newBioDataId = parseInt(lastBioDataId) + 1;
       const newBioData = {
@@ -169,6 +177,13 @@ async function run() {
         updaterDoc,
         options
       );
+      res.send(result);
+    });
+
+    app.delete("/bioData/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await bioDataCollection.deleteOne(query);
       res.send(result);
     });
 
