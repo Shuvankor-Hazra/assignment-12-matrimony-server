@@ -50,16 +50,27 @@ async function run() {
     // await client.connect();
 
     const usersCollection = client.db("shaddiDotCom").collection("users");
+    const bioDataCollection = client.db("shaddiDotCom").collection("bioData");
     const premiumMembersCollection = client
       .db("shaddiDotCom")
       .collection("premiumMembers");
 
-    // auth related api
+    // Verify admin middleware
+    const verifyAdmin = async (req, res, next) => {
+      const user = req.user;
+      const query = { email: user?.email };
+      const result = await usersCollection.findOne(query);
+      if (!result || result?.role !== "admin") {
+        return res.status(401).send({ message: "unauthorized access!" });
+      }
+      next();
+    };
 
+    // auth related api
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: "365d",
+        expiresIn: "7d",
       });
       res
         .cookie("token", token, {
@@ -71,7 +82,6 @@ async function run() {
     });
 
     // Logout
-
     app.get("/logout", async (req, res) => {
       try {
         res
@@ -87,9 +97,8 @@ async function run() {
       }
     });
 
-    // user relayed api
-
-    app.get("/users", async (req, res) => {
+    // user relayed api---------------
+    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
@@ -133,7 +142,37 @@ async function run() {
       res.send(result);
     });
 
-    // premium members related api
+    // bioData related-----------
+
+    app.get("/bioData", async (req, res) => {
+      const result = await bioDataCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.put("/bioData", async (req, res) => {
+      const bioData = req.body;
+      const lastBioDataId = await bioDataCollection.estimatedDocumentCount();
+      const newBioDataId = parseInt(lastBioDataId) + 1;
+      const newBioData = {
+        bioDataId: newBioDataId,
+        ...bioData,
+      };
+      const query = { bioDataId: newBioDataId };
+      const options = { upsert: true };
+      const updaterDoc = {
+        $set: {
+          ...newBioData,
+        },
+      };
+      const result = await bioDataCollection.updateOne(
+        query,
+        updaterDoc,
+        options
+      );
+      res.send(result);
+    });
+
+    // premium members related api--------------
     app.get("/premiumMembers", async (req, res) => {
       const result = await premiumMembersCollection.find().toArray();
       res.send(result);
