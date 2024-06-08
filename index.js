@@ -19,17 +19,18 @@ app.use(cookieParser());
 
 // Verify Token Middleware
 const verifyToken = async (req, res, next) => {
-  const token = req.cookies?.token;
-  console.log(token);
-  if (!token) {
+  console.log("inside inside inside", req.headers.authorization);
+
+  if (!req.headers.authorization) {
     return res.status(401).send({ message: "unauthorized access" });
   }
+  const token = req.headers.authorization.split(" ")[1];
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
     if (err) {
       console.log(err);
       return res.status(401).send({ message: "unauthorized access" });
     }
-    req.user = decoded;
+    req.decoded = decoded;
     next();
   });
 };
@@ -50,6 +51,9 @@ async function run() {
     // await client.connect();
 
     const usersCollection = client.db("shaddiDotCom").collection("users");
+    const successStoryCollection = client
+      .db("shaddiDotCom")
+      .collection("successStory");
     const bioDataCollection = client.db("shaddiDotCom").collection("bioData");
     const premiumMembersCollection = client
       .db("shaddiDotCom")
@@ -66,19 +70,13 @@ async function run() {
       next();
     };
 
-    // auth related api
+    // jwt related api
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "7d",
       });
-      res
-        .cookie("token", token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-        })
-        .send({ success: true });
+      res.send({ token });
     });
 
     // Logout
@@ -97,16 +95,24 @@ async function run() {
       }
     });
 
-    // user relayed api---------------
-    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
+    // user relayed api--------------------------------------
+    app.get("/users", verifyToken, async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
 
-    app.get("/users/:email", async (req, res) => {
+    app.get("/users/admin/:email", async (req, res) => {
       const email = req.params.email;
-      const result = await usersCollection.findOne({ email });
-      res.send(result);
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: "unauthorized access" });
+      }
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      let admin = false;
+      if (user) {
+        admin = user?.role === "admin";
+      }
+      res.send({ admin });
     });
 
     app.put("/users", async (req, res) => {
@@ -142,7 +148,7 @@ async function run() {
       res.send(result);
     });
 
-    // bioData related-----------
+    // bioData related api----------------------
 
     app.get("/bioData", async (req, res) => {
       const result = await bioDataCollection.find().toArray();
@@ -153,6 +159,13 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await bioDataCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.get("/usersBioData/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const result = await bioDataCollection.find(query).toArray();
       res.send(result);
     });
 
@@ -198,7 +211,14 @@ async function run() {
       res.send(result);
     });
 
-    // premium members related api--------------
+    // successStory related api------------------------
+
+    app.get("/successStory", async (req, res) => {
+      const result = await successStoryCollection.find().toArray();
+      res.send(result);
+    });
+
+    // premium members related api--------------------
     app.get("/premiumMembers", async (req, res) => {
       const result = await premiumMembersCollection.find().toArray();
       res.send(result);
