@@ -19,15 +19,12 @@ app.use(cookieParser());
 
 // Verify Token Middleware
 const verifyToken = async (req, res, next) => {
-  console.log("inside inside inside", req.headers.authorization);
-
   if (!req.headers.authorization) {
     return res.status(401).send({ message: "unauthorized access" });
   }
   const token = req.headers.authorization.split(" ")[1];
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
     if (err) {
-      console.log(err);
       return res.status(401).send({ message: "unauthorized access" });
     }
     req.decoded = decoded;
@@ -61,10 +58,11 @@ async function run() {
 
     // Verify admin middleware
     const verifyAdmin = async (req, res, next) => {
-      const user = req.user;
-      const query = { email: user?.email };
-      const result = await usersCollection.findOne(query);
-      if (!result || result?.role !== "admin") {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const isAdmin = user.role === "admin";
+      if (!isAdmin) {
         return res.status(401).send({ message: "unauthorized access!" });
       }
       next();
@@ -79,29 +77,19 @@ async function run() {
       res.send({ token });
     });
 
-    // Logout
-    app.get("/logout", async (req, res) => {
-      try {
-        res
-          .clearCookie("token", {
-            maxAge: 0,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-          })
-          .send({ success: true });
-        console.log("Logout successful");
-      } catch (err) {
-        res.status(500).send(err);
-      }
-    });
-
     // user relayed api--------------------------------------
-    app.get("/users", verifyToken, async (req, res) => {
+    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
 
-    app.get("/users/admin/:email", async (req, res) => {
+    app.get("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const result = await usersCollection.findOne({ email });
+      res.send(result);
+    });
+
+    app.get("/users/admin/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
       if (email !== req.decoded.email) {
         return res.status(403).send({ message: "unauthorized access" });
@@ -137,16 +125,21 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/users/update/:email", async (req, res) => {
-      const email = req.params.email;
-      const user = req.body;
-      const query = { email };
-      const updateDoc = {
-        $set: { ...user, timestamp: Date.now() },
-      };
-      const result = await usersCollection.updateOne(query, updateDoc);
-      res.send(result);
-    });
+    app.patch(
+      "/users/update/:email",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const email = req.params.email;
+        const user = req.body;
+        const query = { email };
+        const updateDoc = {
+          $set: { ...user, timestamp: Date.now() },
+        };
+        const result = await usersCollection.updateOne(query, updateDoc);
+        res.send(result);
+      }
+    );
 
     // bioData related api----------------------
 
