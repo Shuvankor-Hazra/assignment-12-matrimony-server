@@ -55,6 +55,9 @@ async function run() {
     const premiumMembersCollection = client
       .db("shaddiDotCom")
       .collection("premiumMembers");
+    const makePremiumCollection = client
+      .db("shaddiDotCom")
+      .collection("makePremium");
 
     // Verify admin middleware
     const verifyAdmin = async (req, res, next) => {
@@ -109,19 +112,27 @@ async function run() {
       // check if user already exist in db
       const isExist = await usersCollection.findOne(query);
       if (isExist) return res.send(isExist);
-
       const options = { upsert: true };
-      const updaterDoc = {
+      console.log(user);
+      const updateDoc = {
         $set: {
           ...user,
           timestamp: Date.now(),
         },
       };
-      const result = await usersCollection.updateOne(
-        query,
-        updaterDoc,
-        options
-      );
+      const result = await usersCollection.updateOne(query, updateDoc, options);
+      res.send(result);
+    });
+
+    app.patch("/makePremiumUser/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: "premium",
+        },
+      };
+      const result = await usersCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
 
@@ -205,19 +216,53 @@ async function run() {
     });
 
     // successStory related api------------------------
-
     app.get("/successStory", async (req, res) => {
       const result = await successStoryCollection.find().toArray();
       res.send(result);
     });
 
     // premium members related api--------------------
+
+    app.get("/makePremium", async (req, res) => {
+      const result = await makePremiumCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.post("/makePremium", async (req, res) => {
+      const data = req.body;
+      const result = await makePremiumCollection.insertOne(data);
+      res.send(result);
+    });
+
+    app.patch("/bioData/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          type: "premium",
+        },
+      };
+      const result = await bioDataCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
+
+    app.patch("/makePremium/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: id };
+      const updatedDoc = {
+        $set: {
+          type: "premium",
+        },
+      };
+      const result = await makePremiumCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
+
+    // -------------------------------
     app.get("/premiumMembers", async (req, res) => {
       const result = await premiumMembersCollection.find().toArray();
       res.send(result);
     });
-
-    // premium members related api
     app.get("/premiumMembers/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
