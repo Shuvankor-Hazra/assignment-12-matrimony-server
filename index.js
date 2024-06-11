@@ -5,6 +5,7 @@ const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const jwt = require("jsonwebtoken");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 9000;
 
 // middlewares
@@ -61,6 +62,9 @@ async function run() {
     const favoritesBiodataCollection = client
       .db("shaddiDotCom")
       .collection("favoritesBiodata");
+    const contactRequestCollection = client
+      .db("shaddiDotCom")
+      .collection("contactRequest");
 
     // Verify admin middleware
     const verifyAdmin = async (req, res, next) => {
@@ -223,6 +227,59 @@ async function run() {
       res.send(result);
     });
 
+    // contact Request related api
+    app.post("/contactRequest", async (req, res) => {
+      const contactReq = req.body;
+
+      const query = { bioDataId: contactReq.bioDataId };
+      const isExist = await contactRequestCollection.findOne(query);
+      if (isExist) return res.send(isExist);
+
+      const result = await contactRequestCollection.insertOne(contactReq);
+      res.send(result);
+    });
+
+    app.get("/contactRequest", async (req, res) => {
+      const result = await contactRequestCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.get("/contactRequest/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const result = await contactRequestCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.patch("/contactRequest/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: "verified",
+        },
+      };
+      const result = await contactRequestCollection.updateOne(
+        filter,
+        updateDoc
+      );
+      res.send(result);
+    });
+
+    // payment related
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+      console.log(amount, "amount inside intent");
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+      res.send({ clientSecret: paymentIntent.client_secret });
+    });
+
     // premium members related api--------------------
 
     app.get("/makePremium", async (req, res) => {
@@ -276,10 +333,24 @@ async function run() {
     // favorites biodata related api
     app.post("/favoritesBiodata", async (req, res) => {
       const bioData = req.body;
-      const query = {bioDataId: bioData.bioDataId}
+      const query = { bioDataId: bioData.bioDataId };
       const isExist = await favoritesBiodataCollection.findOne(query);
       if (isExist) return res.send(isExist);
       const result = await favoritesBiodataCollection.insertOne(bioData);
+      res.send(result);
+    });
+
+    app.get("/favoritesBiodata/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const result = await favoritesBiodataCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.delete("/favoritesBiodata/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await favoritesBiodataCollection.deleteOne(query);
       res.send(result);
     });
 
