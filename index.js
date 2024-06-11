@@ -58,6 +58,9 @@ async function run() {
     const makePremiumCollection = client
       .db("shaddiDotCom")
       .collection("makePremium");
+    const favoritesBiodataCollection = client
+      .db("shaddiDotCom")
+      .collection("favoritesBiodata");
 
     // Verify admin middleware
     const verifyAdmin = async (req, res, next) => {
@@ -113,7 +116,6 @@ async function run() {
       const isExist = await usersCollection.findOne(query);
       if (isExist) return res.send(isExist);
       const options = { upsert: true };
-      console.log(user);
       const updateDoc = {
         $set: {
           ...user,
@@ -270,6 +272,17 @@ async function run() {
       res.send(result);
     });
     // --------------------------------------------------------------------
+
+    // favorites biodata related api
+    app.post("/favoritesBiodata", async (req, res) => {
+      const bioData = req.body;
+      const query = {bioDataId: bioData.bioDataId}
+      const isExist = await favoritesBiodataCollection.findOne(query);
+      if (isExist) return res.send(isExist);
+      const result = await favoritesBiodataCollection.insertOne(bioData);
+      res.send(result);
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
