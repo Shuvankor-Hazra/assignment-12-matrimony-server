@@ -10,7 +10,12 @@ const port = process.env.PORT || 9000;
 
 // middlewares
 const corsOptions = {
-  origin: ["http://localhost:5173", "http://localhost:5174"],
+  origin: [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://shaadidotcom-af40a.web.app",
+    "https://shaadidotcom-af40a.firebaseapp.com",
+  ],
   credentials: true,
   optionSuccessStatus: 200,
 };
@@ -87,7 +92,7 @@ async function run() {
       res.send({ token });
     });
 
-    // user relayed api--------------------------------------
+    // user relayed api-------------------
     app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
@@ -116,7 +121,6 @@ async function run() {
     app.put("/users", async (req, res) => {
       const user = req.body;
       const query = { email: user?.email };
-      // check if user already exist in db
       const isExist = await usersCollection.findOne(query);
       if (isExist) return res.send(isExist);
       const options = { upsert: true };
@@ -135,7 +139,7 @@ async function run() {
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
-          status: "premium",
+          type: "premium",
         },
       };
       const result = await usersCollection.updateOne(filter, updateDoc);
@@ -270,7 +274,7 @@ async function run() {
     app.post("/create-payment-intent", async (req, res) => {
       const { price } = req.body;
       const amount = parseInt(price * 100);
-      console.log(amount, "amount inside intent");
+      // console.log(amount, "amount inside intent");
 
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
@@ -354,11 +358,27 @@ async function run() {
       res.send(result);
     });
 
+    // stats or analytics
+    app.get("/admin-stats", async (req, res) => {
+      const users = await usersCollection.estimatedDocumentCount();
+      const bioData = await bioDataCollection.estimatedDocumentCount();
+      const makePremium = await makePremiumCollection.estimatedDocumentCount();
+      const contactRequest =
+        await contactRequestCollection.estimatedDocumentCount();
+
+      res.send({
+        users,
+        bioData,
+        makePremium,
+        contactRequest,
+      });
+    });
+    // ----------------------------------------------
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+    // await client.db("admin").command({ ping: 1 });
+    // console.log(
+    ("Pinged your deployment. You successfully connected to MongoDB!");
+    // );
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
