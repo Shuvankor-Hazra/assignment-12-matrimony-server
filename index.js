@@ -53,6 +53,7 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
 
+    // All collections
     const usersCollection = client.db("shaddiDotCom").collection("users");
     const successStoryCollection = client
       .db("shaddiDotCom")
@@ -83,7 +84,7 @@ async function run() {
       next();
     };
 
-    // jwt related api
+    // jwt related api--------------------
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
@@ -92,7 +93,7 @@ async function run() {
       res.send({ token });
     });
 
-    // user relayed api-------------------
+    // user related api-------------------
     app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
@@ -195,29 +196,6 @@ async function run() {
       res.send(result);
     });
 
-    // app.put("/bioData", async (req, res) => {
-    //   const bioData = req.body;
-    //   const lastBioDataId = await bioDataCollection.estimatedDocumentCount();
-    //   const newBioDataId = parseInt(lastBioDataId) + 1;
-    //   const newBioData = {
-    //     bioDataId: newBioDataId,
-    //     ...bioData,
-    //   };
-    //   const query = { bioDataId: newBioDataId };
-    //   const options = { upsert: true };
-    //   const updaterDoc = {
-    //     $set: {
-    //       ...newBioData,
-    //     },
-    //   };
-    //   const result = await bioDataCollection.updateOne(
-    //     query,
-    //     updaterDoc,
-    //     options
-    //   );
-    //   res.send(result);
-    // });
-
     app.delete("/bioData/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -231,7 +209,7 @@ async function run() {
       res.send(result);
     });
 
-    // contact Request related api
+    // contact Request related api..........................
     app.post("/contactRequest", async (req, res) => {
       const contactReq = req.body;
 
@@ -270,12 +248,10 @@ async function run() {
       res.send(result);
     });
 
-    // payment related
+    // payment related------------------------
     app.post("/create-payment-intent", async (req, res) => {
       const { price } = req.body;
       const amount = parseInt(price * 100);
-      // console.log(amount, "amount inside intent");
-
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: "usd",
